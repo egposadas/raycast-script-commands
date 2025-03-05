@@ -8,14 +8,20 @@
 # Optional parameters:
 # @raycast.icon 📅
 # @raycast.needsConfirmation false
+# @raycast.argument1 { "type": "text", "placeholder": "Date", "optional": true }
 
 # Documentation:
 # @raycast.description icalBuddy schedule of the day with formatted output
 # @raycast.author egposadas
 # @raycast.authorURL https://raycast.com/batcave/scripts
 
-# Get the raw schedule from icalBuddy
-raw_schedule=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -df "%H%M" -ea -b "- " eventsToday)
+# Determine the date range for icalBuddy
+if [[ -n "$1" ]]; then
+  date="$1"
+  raw_schedule=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -tf "%H:%M" -ea -b "- " eventsFrom:"$date" to:"$date")
+else
+  raw_schedule=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -tf "%H:%M" -ea -b "- " eventsToday)
+fi
 
 # For testing purposes, uncomment this line and comment out the line above
 # raw_schedule=$(cat test_data.md)
@@ -30,9 +36,9 @@ fi
 formatted_schedule=""
 while IFS= read -r line; do
   if [[ -n "$line" ]]; then
-    # Extract the event details, removing any leading "- " if present
-    event_details="${line#- }"
-    
+    # Remove everything before 'at ' including 'at '
+    event_details=$(echo "$line" | sed 's/^.*at //')
+
     # Make the event title bold
     formatted_schedule+="- **$event_details**\n"
   fi
@@ -42,4 +48,8 @@ done <<< "$raw_schedule"
 echo -e "$formatted_schedule" | pbcopy
 
 # Display success message
-echo "✅ Today's schedule copied to clipboard!"
+if [[ -n "$1" ]]; then
+  echo "✅ Schedule for $1 copied to clipboard!"
+else
+  echo "✅ Today's schedule copied to clipboard!"
+fi
