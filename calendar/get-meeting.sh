@@ -2,62 +2,75 @@
 
 # Required parameters:
 # @raycast.schemaVersion 1
-# @raycast.title Get Meeting
-# @raycast.mode compact
+# @raycast.title Get Meeting Info
+# @raycast.mode silent
 
 # Optional parameters:
 # @raycast.icon 👥
-# @raycast.argument1 { "type": "text", "placeholder": "Meeting title" }
-# @raycast.argument2 { "type": "text", "placeholder": "Date (Date, optional)", "optional": true }
+# @raycast.argument1 { "type": "text", "placeholder": "Meeting Title" }
+# @raycast.argument2 { "type": "text", "placeholder": "Date (YYYY-MM-DD)", "optional": true }
 
 # Documentation:
-# @raycast.description Find meeting details by partial title match
+# @raycast.description Get information about a calendar event based on the title
 # @raycast.author egposadas
 # @raycast.authorURL https://raycast.com/batcave/scripts
 
 # Get the search term from the argument
 search_term=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 
-# Check if date parameter is provided
-if [ -n "$2" ]; then
-  # Use the specific date provided
-  date_param="$2"
-  events=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -df "%H%M" -ea eventsFrom:$date_param to:$date_param)
+# Check if the second argument is provided; if not, default to eventsToday
+if [ -z "$2" ]; then
+  events=$(icalBuddy -nc -na 10 -ps "|\n- |" -iep "title,attendees" -po "title,attendees" -b "- title: " -ea eventsToday)
 else
-  # Default to today if no date is specified
-  events=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -df "%H%M" -ea eventsToday)
+  date="$2"
+  events=$(icalBuddy -nc -na 10 -ps "|\n- |" -iep "title,attendees" -po "title,attendees" -b "- title: " -ea eventsFrom:"$date" to:"$date")
 fi
 
-# Initialize variables
+# Process the output to find matching events
 found=false
-result=""
+title=""
+attendees=""
 
-# Process each line of the events
 while IFS= read -r line; do
-  # Extract the time and title
-  time_part=$(echo "$line" | sed -E 's/^- ([0-9]{4} - [0-9]{4}): .*/\1/')
-  title_part=$(echo "$line" | sed -E 's/^- [0-9]{4} - [0-9]{4}: (.*)/\1/')
-  
-  # Convert title to lowercase for case-insensitive comparison
-  title_lower=$(echo "$title_part" | tr '[:upper:]' '[:lower:]')
-  
-  # Check if the search term is in the title
-  if [[ "$title_lower" == *"$search_term"* ]]; then
-    found=true
-    result="$time_part: $title_part"
-    break
+  if [[ "$line" == "- title: "* ]]; then
+    # If we found a match in the previous iteration, print it and exit
+    if [[ "$found" == true ]]; then
+      # Extract just the attendees part without the prefix
+      attendees_only="${attendees#- attendees: }"
+      # Format the output with three bullets
+      formatted_output="- _Attendees:_ $attendees_only\n- _Notes:_\n- _References:_"
+      echo -e "$formatted_output" | pbcopy
+      echo "✅ Meeting info for \"${title#- title: }\" on ${date:-today} copied to clipboard"
+      exit 0
+    fi
+    
+    # Reset for new event
+    found=false
+    title="$line"
+    
+    # Extract just the title part for comparison
+    event_title=$(echo "${line#- title: }" | tr '[:upper:]' '[:lower:]')
+    
+    # Check if the search term is in the event title
+    if [[ "$event_title" == *"$search_term"* ]]; then
+      found=true
+    fi
+  elif [[ "$line" == "- attendees: "* && "$found" == true ]]; then
+    attendees="$line"
   fi
 done <<< "$events"
 
-# Output the result
-if [ "$found" = true ]; then
-  # Format for display in Raycast
-  echo "**Meeting found:** $result"
-  
-  # Format for clipboard (just the raw result)
-  echo -n "$result" | pbcopy
-  echo "✅ \"$title_part\" details copied to clipboard"
-else
-  echo "❌ No meeting found matching \"$1\""
+# Check if the last event was a match
+if [[ "$found" == true ]]; then
+  # Extract just the attendees part without the prefix
+  attendees_only="${attendees#- attendees: }"
+  # Format the output with three bullets
+  formatted_output="- _Attendees:_ $attendees_only\n- _Notes:_\n- _References:_"
+  echo -e "$formatted_output" | pbcopy
+  echo "✅ Meeting info for \"${title#- title: }\" on ${date:-today} copied to clipboard"
+  exit 0
 fi
+
+echo "❌ No matching event found for '$1' on ${date:-today}"
+exit 1
 
