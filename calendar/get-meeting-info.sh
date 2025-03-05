@@ -8,6 +8,7 @@
 # Optional parameters:
 # @raycast.icon 👥
 # @raycast.argument1 { "type": "text", "placeholder": "Meeting Title" }
+# @raycast.argument2 { "type": "text", "placeholder": "Date (YYYY-MM-DD)", "optional": true }
 
 # Documentation:
 # @raycast.description Get information about a calendar event based on the title
@@ -17,8 +18,13 @@
 # Get the search term from the argument
 search_term=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 
-# Run icalBuddy to get today's events with titles and attendees
-events=$(icalBuddy -nc -na 10 -ps "|\n- |" -iep "title,attendees" -po "title,attendees" -b "- title: " -ea eventsToday)
+# Check if the second argument is provided; if not, default to eventsToday
+if [ -z "$2" ]; then
+  events=$(icalBuddy -nc -na 10 -ps "|\n- |" -iep "title,attendees" -po "title,attendees" -b "- title: " -ea eventsToday)
+else
+  date="$2"
+  events=$(icalBuddy -nc -na 10 -ps "|\n- |" -iep "title,attendees" -po "title,attendees" -b "- title: " -ea eventsFrom:"$date" to:"$date")
+fi
 
 # Process the output to find matching events
 found=false
@@ -34,7 +40,7 @@ while IFS= read -r line; do
       # Format the output with three bullets
       formatted_output="- _Attendees:_ $attendees_only\n- _Notes:_\n- _References:_"
       echo -e "$formatted_output" | pbcopy
-      echo "✅ Meeting info for \"${title#- title: }\" copied to clipboard"
+      echo "✅ Meeting info for \"${title#- title: }\" on ${date:-today} copied to clipboard"
       exit 0
     fi
     
@@ -61,10 +67,10 @@ if [[ "$found" == true ]]; then
   # Format the output with three bullets
   formatted_output="- _Attendees:_ $attendees_only\n- _Notes:_\n- _References:_"
   echo -e "$formatted_output" | pbcopy
-  echo "✅ Meeting info for \"${title#- title: }\" copied to clipboard"
+  echo "✅ Meeting info for \"${title#- title: }\" on ${date:-today} copied to clipboard"
   exit 0
 fi
 
-echo "❌ No matching event found for '$1'"
+echo "❌ No matching event found for '$1' on ${date:-today}"
 exit 1
 
