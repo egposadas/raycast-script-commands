@@ -18,9 +18,9 @@
 # Determine the date range for icalBuddy
 if [[ -n "$1" ]]; then
   date="$1"
-  raw_schedule=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -tf "%H:%M" -ea -b "- " eventsFrom:"$date" to:"$date")
+  raw_schedule=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -tf "%H:%M" -ea -b "" eventsFrom:"$date" to:"$date")
 else
-  raw_schedule=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -tf "%H:%M" -ea -b "- " eventsToday)
+  raw_schedule=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -tf "%H:%M" -ea -b "" eventsToday)
 fi
 
 # For testing purposes, uncomment this line and comment out the line above
