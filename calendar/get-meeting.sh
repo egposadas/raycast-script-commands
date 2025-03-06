@@ -22,10 +22,10 @@ search_term=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 if [ -n "$2" ]; then
   # Use the specific date provided
   date_param="$2"
-  events=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -df "%H%M" -ea eventsFrom:$date_param to:$date_param)
+  events=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -df "%H%M" -b "" -ea eventsFrom:$date_param to:$date_param)
 else
   # Default to today if no date is specified
-  events=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -df "%H%M" -ea eventsToday)
+  events=$(icalBuddy -nc -ps "|: |" -iep "datetime,title" -po "datetime,title" -df "%H%M" -b "" -ea eventsToday)
 fi
 
 # Initialize variables
